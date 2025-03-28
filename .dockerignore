@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+coverage
+.git
+.github
+.vscode
+.env
+*.log
+logs
+dist
+.DS_Store
+*.orig
+*.rej
+*.swp

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  github-reviewer:
+    build: .
+    container_name: github-reviewer
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    environment:
+      - NODE_ENV=production
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_OWNER=${GITHUB_OWNER}
+      - GITHUB_REPO=${GITHUB_REPO}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - CLAUDE_MODEL=${CLAUDE_MODEL}
+      - CLAUDE_MAX_TOKENS=${CLAUDE_MAX_TOKENS}
+      - CLAUDE_TEMPERATURE=${CLAUDE_TEMPERATURE}
+      - TEST_FRAMEWORK=${TEST_FRAMEWORK}
+      - AUTO_GENERATE_TESTS=${AUTO_GENERATE_TESTS}
+      - PORT=${PORT:-3000}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - WEBHOOK_PATH=${WEBHOOK_PATH}
+      - DEBUG=${DEBUG}
+      - VERBOSE=${VERBOSE}
+      - DRY_RUN=${DRY_RUN}
+    command: ["node", "dist/index.js", "server"]
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - github-reviewer-net
+
+networks:
+  github-reviewer-net:
+    driver: bridge

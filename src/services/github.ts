@@ -1,15 +1,17 @@
 import { Octokit } from '@octokit/rest';
-import { GithubConfig, PullRequest, PullRequestFile } from '../types';
+import { GithubConfig, PullRequest, PullRequestFile, ReviewComment } from '../types';
 
 export class GithubService {
   private octokit: Octokit;
   private owner?: string;
   private repo?: string;
+  private botUsername?: string;
 
   constructor(config: GithubConfig) {
     this.octokit = new Octokit({ auth: config.token });
     this.owner = config.owner;
     this.repo = config.repo;
+    this.botUsername = config.botUsername;
   }
 
   async getPullRequest(owner: string, repo: string, prNumber: number): Promise<PullRequest> {
@@ -22,7 +24,11 @@ export class GithubService {
     return data as PullRequest;
   }
 
-  async getPullRequestFiles(owner: string, repo: string, prNumber: number): Promise<PullRequestFile[]> {
+  async getPullRequestFiles(
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ): Promise<PullRequestFile[]> {
     const { data } = await this.octokit.pulls.listFiles({
       owner,
       repo,
@@ -89,5 +95,35 @@ export class GithubService {
       event,
       comments,
     });
+  }
+
+  async getReviewComments(owner: string, repo: string, prNumber: number): Promise<ReviewComment[]> {
+    const { data } = await this.octokit.pulls.listReviewComments({
+      owner,
+      repo,
+      pull_number: prNumber,
+    });
+
+    return data as ReviewComment[];
+  }
+
+  async createReplyComment(
+    owner: string,
+    repo: string,
+    prNumber: number,
+    body: string,
+    commentId: number,
+  ): Promise<void> {
+    await this.octokit.pulls.createReplyForReviewComment({
+      owner,
+      repo,
+      pull_number: prNumber,
+      body,
+      comment_id: commentId,
+    });
+  }
+
+  isBotComment(comment: ReviewComment): boolean {
+    return comment.user?.login === this.botUsername;
   }
 }

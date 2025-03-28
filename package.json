@@ -1,21 +1,42 @@
 {
   "name": "github-reviewer",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write 'src/**/*.ts'",
+    "review-pr": "ts-node src/index.ts review-pr",
+    "generate-tests": "ts-node src/index.ts generate-tests",
+    "server": "ts-node src/index.ts server",
+    "server:prod": "node dist/index.js server"
   },
-  "keywords": [],
+  "keywords": [
+    "github",
+    "code-review",
+    "ai",
+    "claude"
+  ],
   "author": "",
   "license": "ISC",
-  "description": "",
-  "devDependencies": {
+  "description": "AI-powered GitHub code reviewer using Claude",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@octokit/rest": "^21.1.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.3",
+    "promptfoo": "^0.107.5"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.13.14",
     "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
-    "dotenv": "^16.4.7",
     "eslint": "^9.23.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.5",

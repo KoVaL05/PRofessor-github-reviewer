@@ -2,6 +2,36 @@ export interface GithubConfig {
   token: string;
   owner?: string;
   repo?: string;
+  botUsername?: string;
+}
+
+export interface ClaudeConfig {
+  apiKey: string;
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export interface CodeBaseConfig {
+  language: string;
+  frameworkInfo: string;
+}
+
+export interface ApiRequest {
+  timestamp: Date;
+  prompt: string;
+  options: Record<string, unknown>;
+  response?: unknown;
+  error?: Error;
+  latency: number;
+  success: boolean;
+}
+
+export interface ApiResponse {
+  content: string;
+  rawResponse?: unknown;
+  error?: Error;
+  success: boolean;
 }
 
 export interface PullRequest {
@@ -37,6 +67,7 @@ export interface PullRequestFile {
 }
 
 export interface ReviewComment {
+  id?: number;
   body: string;
   path: string;
   position?: number | null;
@@ -44,6 +75,13 @@ export interface ReviewComment {
   start_line?: number;
   start_side?: 'LEFT' | 'RIGHT';
   side?: 'LEFT' | 'RIGHT';
+  user?: {
+    login: string;
+  };
+  created_at?: string;
+  updated_at?: string;
+  html_url?: string;
+  in_reply_to_id?: number;
 }
 
 export interface CodeReview {
