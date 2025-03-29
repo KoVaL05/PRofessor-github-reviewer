@@ -1,25 +1,24 @@
 import { ClaudeService } from '../src/services/claude';
 
 // Mock the Anthropic client
-jest.mock('@anthropic-ai/sdk', () => {
-  return {
-    __esModule: true,
-    default: jest.fn().mockImplementation(() => {
-      return {
-        messages: {
-          create: jest.fn().mockResolvedValue({
-            id: 'msg_mock',
-            type: 'message',
-            role: 'assistant',
-            content: [{ type: 'text', text: 'This is a mock response' }],
-            model: 'claude-3-haiku-20240307',
-            stop_reason: 'end_turn',
-          }),
-        },
-      };
-    }),
-  };
-});
+jest.mock('@anthropic-ai/sdk', () => ({
+  Anthropic: jest.fn().mockImplementation(() => ({
+    messages: {
+      create: jest.fn().mockResolvedValue({
+        id: 'msg_mock',
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'This is a mock response' }],
+        model: 'claude-3-haiku-20240307',
+        stop_reason: 'end_turn',
+      }),
+      batches: jest.fn(),
+      stream: jest.fn(),
+      countTokens: jest.fn(),
+      _client: {},
+    },
+  })),
+}));
 
 // Mock promptfoo
 jest.mock('promptfoo', () => ({
@@ -42,7 +41,7 @@ describe('ClaudeService', () => {
       {
         language: 'TypeScript',
         frameworkInfo: 'jest',
-      }
+      },
     );
   });
 
@@ -57,14 +56,12 @@ describe('ClaudeService', () => {
   describe('generateResponse', () => {
     it('should call Claude API and return content', async () => {
       const response = await claudeService.generateResponse('Test prompt');
-      
       expect(response.content).toBe('This is a mock response');
       expect(response.success).toBe(true);
     });
 
     it('should track the API request', async () => {
       await claudeService.generateResponse('Test prompt');
-      
       const requests = claudeService.getRequests();
       expect(requests.length).toBe(1);
       expect(requests[0].prompt).toBe('Test prompt');
@@ -104,7 +101,7 @@ describe('ClaudeService', () => {
         messages: {
           create: mockCreate,
         },
-      };
+      } as unknown;
     });
 
     it('should generate a PR review', async () => {
@@ -147,13 +144,13 @@ describe('ClaudeService', () => {
         messages: {
           create: mockCreate,
         },
-      };
+      } as unknown;
     });
 
     it('should generate test code', async () => {
       const testCode = await claudeService.generateTests(
         'src/utils/test.ts',
-        'export function add(a: number, b: number): number { return a + b; }'
+        'export function add(a: number, b: number): number { return a + b; }',
       );
 
       expect(testCode).toContain('test(');

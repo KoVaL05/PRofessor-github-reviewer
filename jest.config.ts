@@ -4,9 +4,12 @@ module.exports = {
   roots: ['<rootDir>/src/', '<rootDir>/tests/'],
   testMatch: ['**/*.test.ts'],
   transform: {
-    '^.+\\.tsx?$': 'ts-jest',
+    '^.+\\.(ts|tsx)$': 'ts-jest',
   },
   collectCoverage: true,
   coverageDirectory: 'coverage',
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
+  collectCoverageFrom: ['src/**/*.ts'],
+  coverageReporters: ['lcov', 'text-summary'],
+  coveragePathIgnorePatterns: ['/node_modules/', '/__tests__/'],
+  testPathIgnorePatterns: ['/node_modules/'],
 };

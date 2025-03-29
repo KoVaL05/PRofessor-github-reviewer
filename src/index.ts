@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   const claudeService = new ClaudeService(
     {
       apiKey: claudeApiKey,
-      model: process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307',
+      model: process.env.CLAUDE_MODEL || 'claude-3-7-sonnet-latest',
       maxTokens: process.env.CLAUDE_MAX_TOKENS ? parseInt(process.env.CLAUDE_MAX_TOKENS, 10) : 1000,
       temperature: process.env.CLAUDE_TEMPERATURE
         ? parseFloat(process.env.CLAUDE_TEMPERATURE)
