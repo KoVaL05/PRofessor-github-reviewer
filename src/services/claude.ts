@@ -1,6 +1,6 @@
 import { Anthropic } from '@anthropic-ai/sdk';
-import * as promptfoo from 'promptfoo';
 import { ClaudeConfig, ApiRequest, ApiResponse, CodeReview, CodeBaseConfig } from '../types';
+import { logger } from '../utils/logger';
 
 export class ClaudeService {
   private client: Anthropic;
@@ -55,9 +55,29 @@ export class ClaudeService {
         success: true,
       };
 
+      // Calculate token usage and cost
+      // Cast the response to access usage property
+      const messageResponse = response as Anthropic.Messages.Message;
+      if (messageResponse && 'usage' in messageResponse && messageResponse.usage) {
+        request.inputTokens = messageResponse.usage.input_tokens;
+        request.outputTokens = messageResponse.usage.output_tokens;
+        request.totalTokens =
+          messageResponse.usage.input_tokens + messageResponse.usage.output_tokens;
+
+        // Calculate cost if pricing is configured
+        if (this.config.pricing && this.config.pricing[mergedOptions.model as string]) {
+          const pricing = this.config.pricing[mergedOptions.model as string];
+          const inputCost =
+            (messageResponse.usage.input_tokens / 1000) * pricing.inputCostPer1kTokens;
+          const outputCost =
+            (messageResponse.usage.output_tokens / 1000) * pricing.outputCostPer1kTokens;
+          request.cost = inputCost + outputCost;
+        }
+      }
+
       this.requests.push(request);
 
-      await this.logToPromptfoo(request);
+      await this.logRequest(request);
 
       // Handle both regular responses and stream responses
       if ('content' in response && Array.isArray(response.content) && response.content.length > 0) {
@@ -96,34 +116,42 @@ export class ClaudeService {
   }
 
   /**
-   * Log a request to promptfoo for analytics
+   * Log API request analytics
    */
-  private async logToPromptfoo(request: ApiRequest): Promise<void> {
-    try {
-      // Access options safely with type checking
-      const options = request.options as Record<string, unknown>;
-      const model = options.model as string | undefined;
-      const temperature = options.temperature as number | undefined;
-      const maxTokens = options.max_tokens as number | undefined;
-      await promptfoo.evaluate({
-        prompts: [request.prompt],
-        providers: [
-          {
-            id: model,
-            config: {
-              temperature: temperature,
-              maxTokens: maxTokens,
-            },
-          },
-        ],
-        metadata: {
-          latencyMs: request.latency,
-          success: request.success,
-          timestamp: request.timestamp.toISOString(),
-        },
-      });
-    } catch (error) {
-      console.error('Error logging to promptfoo:', error);
+  private async logRequest(request: ApiRequest): Promise<void> {
+    if (!this.config.trackingEnabled) {
+      return;
+    }
+
+    const status = request.success ? 'SUCCESS' : 'ERROR';
+    const model = (request.options.model as string) || 'unknown';
+    const tokensInfo = request.totalTokens
+      ? `(${request.inputTokens} in / ${request.outputTokens} out)`
+      : '';
+    const costInfo = request.cost ? `$${request.cost.toFixed(4)}` : '';
+
+    // Log to the application logger
+    logger.logApiCall('ClaudeService', `request-${model}`, request.latency, status, {
+      model,
+      promptLength: request.prompt.length,
+      inputTokens: request.inputTokens,
+      outputTokens: request.outputTokens,
+      totalTokens: request.totalTokens,
+      cost: request.cost,
+      timestamp: request.timestamp,
+    });
+
+    // Log a summary for quick analysis
+    if (request.success) {
+      logger.info(
+        `Claude API ${model} ${status} in ${request.latency}ms ${tokensInfo} ${costInfo}`,
+        { prompt: request.prompt.substring(0, 100) + '...' },
+      );
+    } else {
+      logger.error(
+        `Claude API ${model} ${status} in ${request.latency}ms: ${request.error?.message}`,
+        { prompt: request.prompt.substring(0, 100) + '...' },
+      );
     }
   }
 
@@ -139,6 +167,82 @@ export class ClaudeService {
    */
   clearRequests(): void {
     this.requests = [];
+  }
+
+  /**
+   * Get usage analytics for a time period
+   */
+  getUsageAnalytics(
+    startDate?: Date,
+    endDate?: Date,
+  ): {
+    totalRequests: number;
+    successfulRequests: number;
+    failedRequests: number;
+    totalTokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalCost: number;
+    averageLatency: number;
+    requestsByModel: Record<string, number>;
+  } {
+    // Filter requests by date range if provided
+    let filteredRequests = this.requests;
+    if (startDate) {
+      filteredRequests = filteredRequests.filter((r) => r.timestamp >= startDate);
+    }
+    if (endDate) {
+      filteredRequests = filteredRequests.filter((r) => r.timestamp <= endDate);
+    }
+
+    // Count requests by model
+    const requestsByModel: Record<string, number> = {};
+    filteredRequests.forEach((request) => {
+      const model = (request.options.model as string) || 'unknown';
+      requestsByModel[model] = (requestsByModel[model] || 0) + 1;
+    });
+
+    // Calculate stats
+    const successfulRequests = filteredRequests.filter((r) => r.success);
+    const totalTokens = filteredRequests.reduce((sum, r) => sum + (r.totalTokens || 0), 0);
+    const inputTokens = filteredRequests.reduce((sum, r) => sum + (r.inputTokens || 0), 0);
+    const outputTokens = filteredRequests.reduce((sum, r) => sum + (r.outputTokens || 0), 0);
+    const totalCost = filteredRequests.reduce((sum, r) => sum + (r.cost || 0), 0);
+    const totalLatency = filteredRequests.reduce((sum, r) => sum + r.latency, 0);
+    const averageLatency = filteredRequests.length > 0 ? totalLatency / filteredRequests.length : 0;
+
+    return {
+      totalRequests: filteredRequests.length,
+      successfulRequests: successfulRequests.length,
+      failedRequests: filteredRequests.length - successfulRequests.length,
+      totalTokens,
+      inputTokens,
+      outputTokens,
+      totalCost,
+      averageLatency,
+      requestsByModel,
+    };
+  }
+
+  /**
+   * Get cost breakdown by model
+   */
+  getCostBreakdown(): Record<string, { requests: number; tokens: number; cost: number }> {
+    const breakdown: Record<string, { requests: number; tokens: number; cost: number }> = {};
+
+    this.requests.forEach((request) => {
+      const model = (request.options.model as string) || 'unknown';
+
+      if (!breakdown[model]) {
+        breakdown[model] = { requests: 0, tokens: 0, cost: 0 };
+      }
+
+      breakdown[model].requests += 1;
+      breakdown[model].tokens += request.totalTokens || 0;
+      breakdown[model].cost += request.cost || 0;
+    });
+
+    return breakdown;
   }
 
   /**
@@ -221,7 +325,7 @@ Return only the test code without explanations.`;
    * Generate a response to a user comment on a review
    */
   async respondToComment(userComment: string, codeContext?: string): Promise<string> {
-    let prompt = `You are an AI code reviewer assistant. A developer has replied to one of your code review comments. 
+    let prompt = `You are an AI code reviewer assistant. A developer has replied to one of your code review comments.
 Please provide a helpful and constructive response. Be concise, friendly, and focus on helping the developer.
 
 The developer's comment:

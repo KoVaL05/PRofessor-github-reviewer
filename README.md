@@ -9,7 +9,7 @@ AI-powered GitHub code reviewer that provides insightful feedback on pull reques
 - Provides suggestions for code improvements
 - Integrates directly with GitHub's review system
 - Generates test files for new functionality
-- Tracks API requests with promptfoo for cost monitoring and analytics
+- Tracks API requests for cost monitoring and analytics
 - Responds interactively to developer replies
 - Runs as a server with GitHub webhook integration
 - Deploys easily with Docker
@@ -169,7 +169,7 @@ npm run format
 - **CodeReviewerService**: Orchestrates the review process between GitHub and Claude
 - **WebhookService**: Handles GitHub webhook events for automated PR reviews
 - **Logger**: Utility for tracking and debugging
-- **PromptFoo Integration**: Collects API request metrics for cost tracking and performance analysis
+- **Request Tracking**: Collects API request metrics for cost tracking and performance analysis
 
 ## Health Checks
 

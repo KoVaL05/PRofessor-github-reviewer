@@ -10,6 +10,13 @@ export interface ClaudeConfig {
   model?: string;
   maxTokens?: number;
   temperature?: number;
+  pricing?: {
+    [key: string]: {
+      inputCostPer1kTokens: number;
+      outputCostPer1kTokens: number;
+    };
+  };
+  trackingEnabled?: boolean;
 }
 
 export interface CodeBaseConfig {
@@ -25,6 +32,10 @@ export interface ApiRequest {
   error?: Error;
   latency: number;
   success: boolean;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  cost?: number;
 }
 
 export interface ApiResponse {
