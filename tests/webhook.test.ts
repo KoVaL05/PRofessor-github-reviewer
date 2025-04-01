@@ -1,7 +1,7 @@
 import { WebhookService } from '../src/services/webhook';
 import { CodeReviewerService } from '../src/services/reviewer';
 import { GithubService } from '../src/services/github';
-import { ClaudeService } from '../src/services/claude';
+import { ClaudeService } from '../src/services/models/claude';
 import express from 'express';
 import { createHmac } from 'crypto';
 

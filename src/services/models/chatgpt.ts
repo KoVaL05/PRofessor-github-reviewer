@@ -1,15 +1,16 @@
-import { Anthropic } from '@anthropic-ai/sdk';
-import { ClaudeConfig, ApiRequest, ApiResponse, CodeReview, CodeBaseConfig } from '../types';
-import { logger } from '../utils/logger';
+import { OpenAI } from '@openai/openai';
+import { ModelConfig, ApiRequest, ApiResponse, CodeReview, CodeBaseConfig } from '../../types';
+import { logger } from '../../utils/logger';
+import { ProviderService } from '../provider_service';
 
-export class ClaudeService {
-  private client: Anthropic;
-  private requests: ApiRequest[] = [];
-  private config: ClaudeConfig;
+export class ChatGPTService extends ProviderService {
+  private client: OpenAI;
+  private config: ModelConfig;
   private codeBaseConfig: CodeBaseConfig;
 
-  constructor(config: ClaudeConfig, codeBaseConfig: CodeBaseConfig) {
-    this.client = new Anthropic({
+  constructor(config: ModelConfig, codeBaseConfig: CodeBaseConfig) {
+    super();
+    this.client = new OpenAI({
       apiKey: config.apiKey,
     });
     this.config = config;
@@ -17,19 +18,19 @@ export class ClaudeService {
   }
 
   /**
-   * Send a request to Claude API and track it
+   * Send a request to ChatGPT API and track it
    */
   async generateResponse(
     prompt: string,
-    options: Partial<Anthropic.Messages.MessageCreateParams> = {},
+    options: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming> = {},
   ): Promise<ApiResponse> {
     const requestTime = new Date();
 
     try {
-      const defaultOptions: Anthropic.Messages.MessageCreateParams = {
-        model: this.config.model || 'claude-3-haiku-20240307',
-        max_tokens: this.config.maxTokens || 1000,
-        temperature: this.config.temperature || 0.7,
+      const defaultOptions: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
+        model: this.config.model!,
+        max_tokens: this.config.maxTokens!,
+        temperature: this.config.temperature!,
         messages: [{ role: 'user', content: prompt }],
       };
 
@@ -40,7 +41,7 @@ export class ClaudeService {
         mergedOptions.messages = options.messages;
       }
 
-      const response = await this.client.messages.create(mergedOptions);
+      const response = await this.client.chat.completions.create(mergedOptions);
 
       const responseTime = new Date();
       const latency = responseTime.getTime() - requestTime.getTime();
@@ -57,20 +58,20 @@ export class ClaudeService {
 
       // Calculate token usage and cost
       // Cast the response to access usage property
-      const messageResponse = response as Anthropic.Messages.Message;
+      const messageResponse = response as OpenAI.Chat.Completions.ChatCompletion;
       if (messageResponse && 'usage' in messageResponse && messageResponse.usage) {
-        request.inputTokens = messageResponse.usage.input_tokens;
-        request.outputTokens = messageResponse.usage.output_tokens;
+        request.inputTokens = messageResponse.usage.prompt_tokens;
+        request.outputTokens = messageResponse.usage.completion_tokens;
         request.totalTokens =
-          messageResponse.usage.input_tokens + messageResponse.usage.output_tokens;
+          messageResponse.usage.prompt_tokens + messageResponse.usage.completion_tokens;
 
         // Calculate cost if pricing is configured
         if (this.config.pricing && this.config.pricing[mergedOptions.model as string]) {
           const pricing = this.config.pricing[mergedOptions.model as string];
           const inputCost =
-            (messageResponse.usage.input_tokens / 1000) * pricing.inputCostPer1kTokens;
+            (messageResponse.usage.prompt_tokens / 1000) * pricing.inputCostPer1kTokens;
           const outputCost =
-            (messageResponse.usage.output_tokens / 1000) * pricing.outputCostPer1kTokens;
+            (messageResponse.usage.completion_tokens / 1000) * pricing.outputCostPer1kTokens;
           request.cost = inputCost + outputCost;
         }
       }
@@ -79,18 +80,24 @@ export class ClaudeService {
 
       await this.logRequest(request);
 
-      // Handle both regular responses and stream responses
-      if ('content' in response && Array.isArray(response.content) && response.content.length > 0) {
-        const block = response.content[0];
-        if ('type' in block && block.type === 'text' && 'text' in block) {
+      // Extract text from OpenAI Chat Completions
+      if (
+        response &&
+        response.choices &&
+        Array.isArray(response.choices) &&
+        response.choices.length > 0
+      ) {
+        const message = response.choices[0].message;
+        if (message && message.content) {
           return {
-            content: block.text,
+            content: message.content,
             rawResponse: response,
             success: true,
           };
         }
       }
-      throw new Error('Unexpected response format from Claude API');
+
+      throw new Error('Unexpected response format from ChatGPT API');
     } catch (error) {
       const responseTime = new Date();
       const latency = responseTime.getTime() - requestTime.getTime();
@@ -118,7 +125,7 @@ export class ClaudeService {
   /**
    * Log API request analytics
    */
-  private async logRequest(request: ApiRequest): Promise<void> {
+  async logRequest(request: ApiRequest): Promise<void> {
     if (!this.config.trackingEnabled) {
       return;
     }
@@ -131,7 +138,7 @@ export class ClaudeService {
     const costInfo = request.cost ? `$${request.cost.toFixed(4)}` : '';
 
     // Log to the application logger
-    logger.logApiCall('ClaudeService', `request-${model}`, request.latency, status, {
+    logger.logApiCall('ChatGPTService', `request-${model}`, request.latency, status, {
       model,
       promptLength: request.prompt.length,
       inputTokens: request.inputTokens,
@@ -144,105 +151,15 @@ export class ClaudeService {
     // Log a summary for quick analysis
     if (request.success) {
       logger.info(
-        `Claude API ${model} ${status} in ${request.latency}ms ${tokensInfo} ${costInfo}`,
+        `ChatGPT API ${model} ${status} in ${request.latency}ms ${tokensInfo} ${costInfo}`,
         { prompt: request.prompt.substring(0, 100) + '...' },
       );
     } else {
       logger.error(
-        `Claude API ${model} ${status} in ${request.latency}ms: ${request.error?.message}`,
+        `ChatGPT API ${model} ${status} in ${request.latency}ms: ${request.error?.message}`,
         { prompt: request.prompt.substring(0, 100) + '...' },
       );
     }
-  }
-
-  /**
-   * Get all tracked API requests
-   */
-  getRequests(): ApiRequest[] {
-    return this.requests;
-  }
-
-  /**
-   * Clear tracked API requests
-   */
-  clearRequests(): void {
-    this.requests = [];
-  }
-
-  /**
-   * Get usage analytics for a time period
-   */
-  getUsageAnalytics(
-    startDate?: Date,
-    endDate?: Date,
-  ): {
-    totalRequests: number;
-    successfulRequests: number;
-    failedRequests: number;
-    totalTokens: number;
-    inputTokens: number;
-    outputTokens: number;
-    totalCost: number;
-    averageLatency: number;
-    requestsByModel: Record<string, number>;
-  } {
-    // Filter requests by date range if provided
-    let filteredRequests = this.requests;
-    if (startDate) {
-      filteredRequests = filteredRequests.filter((r) => r.timestamp >= startDate);
-    }
-    if (endDate) {
-      filteredRequests = filteredRequests.filter((r) => r.timestamp <= endDate);
-    }
-
-    // Count requests by model
-    const requestsByModel: Record<string, number> = {};
-    filteredRequests.forEach((request) => {
-      const model = (request.options.model as string) || 'unknown';
-      requestsByModel[model] = (requestsByModel[model] || 0) + 1;
-    });
-
-    // Calculate stats
-    const successfulRequests = filteredRequests.filter((r) => r.success);
-    const totalTokens = filteredRequests.reduce((sum, r) => sum + (r.totalTokens || 0), 0);
-    const inputTokens = filteredRequests.reduce((sum, r) => sum + (r.inputTokens || 0), 0);
-    const outputTokens = filteredRequests.reduce((sum, r) => sum + (r.outputTokens || 0), 0);
-    const totalCost = filteredRequests.reduce((sum, r) => sum + (r.cost || 0), 0);
-    const totalLatency = filteredRequests.reduce((sum, r) => sum + r.latency, 0);
-    const averageLatency = filteredRequests.length > 0 ? totalLatency / filteredRequests.length : 0;
-
-    return {
-      totalRequests: filteredRequests.length,
-      successfulRequests: successfulRequests.length,
-      failedRequests: filteredRequests.length - successfulRequests.length,
-      totalTokens,
-      inputTokens,
-      outputTokens,
-      totalCost,
-      averageLatency,
-      requestsByModel,
-    };
-  }
-
-  /**
-   * Get cost breakdown by model
-   */
-  getCostBreakdown(): Record<string, { requests: number; tokens: number; cost: number }> {
-    const breakdown: Record<string, { requests: number; tokens: number; cost: number }> = {};
-
-    this.requests.forEach((request) => {
-      const model = (request.options.model as string) || 'unknown';
-
-      if (!breakdown[model]) {
-        breakdown[model] = { requests: 0, tokens: 0, cost: 0 };
-      }
-
-      breakdown[model].requests += 1;
-      breakdown[model].tokens += request.totalTokens || 0;
-      breakdown[model].cost += request.cost || 0;
-    });
-
-    return breakdown;
   }
 
   /**

@@ -1,13 +1,13 @@
 import { CodeReview, ReviewComment } from '../types';
 import { GithubService } from './github';
-import { ClaudeService } from './claude';
 import { logger } from '../utils/logger';
+import { ProviderService } from './provider_service';
 
 export class CodeReviewerService {
   public githubService: GithubService;
-  private claudeService: ClaudeService;
+  private claudeService: ProviderService;
 
-  constructor(githubService: GithubService, claudeService: ClaudeService) {
+  constructor(githubService: GithubService, claudeService: ProviderService) {
     this.githubService = githubService;
     this.claudeService = claudeService;
   }
