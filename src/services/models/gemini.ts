@@ -1,7 +1,7 @@
 import {
-  GoogleGenerativeAI,
   GenerateContentRequest,
   GenerationConfig,
+  GoogleGenerativeAI,
 } from '@google/generative-ai';
 import { ModelConfig, ApiRequest, ApiResponse, CodeReview, CodeBaseConfig } from '../../types';
 import { logger } from '../../utils/logger';
