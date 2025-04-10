@@ -1,7 +1,7 @@
 import { WebhookService } from '../src/services/webhook';
 import { CodeReviewerService } from '../src/services/reviewer';
 import { GithubService } from '../src/services/github';
-import { ClaudeService } from '../src/services/claude';
+import { ClaudeService } from '../src/services/models/claude';
 import express from 'express';
 import { createHmac } from 'crypto';
 
@@ -29,7 +29,7 @@ jest.mock('@octokit/rest', () => {
 });
 jest.mock('../src/services/reviewer');
 jest.mock('../src/services/github');
-jest.mock('../src/services/claude');
+jest.mock('../src/services/models/claude');
 jest.mock('express', () => {
   const json = jest.fn().mockReturnValue(() => {});
   const mockExpress = {
@@ -55,7 +55,7 @@ describe('WebhookService', () => {
   };
   beforeEach(() => {
     jest.clearAllMocks();
-    // Setup mock reviewer service
+    // Setup whole mock reviewer service
     const mockGithubService = new GithubService({
       token: 'test-token',
     }) as jest.Mocked<GithubService>;

@@ -20,8 +20,8 @@ AI-powered GitHub code reviewer that provides insightful feedback on pull reques
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/github-reviewer.git
-cd github-reviewer
+git clone https://github.com/KoVaL05/PRofessor-github-reviewer.git
+cd PRofessor-github-reviewer
 
 # Install dependencies
 npm install
@@ -34,8 +34,8 @@ npm run build
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/github-reviewer.git
-cd github-reviewer
+git clone https://github.com/KoVaL05/PRofessor-github-reviewer.git
+cd PRofessor-github-reviewer
 
 # Create .env file
 cp .env.example .env
@@ -57,16 +57,17 @@ Edit the `.env` file:
 
 ```
 # GitHub configuration
+PROVIDER_NAME=|'Claude'|'ChatGPT'|'Gemini'|
 GITHUB_TOKEN=your_github_token_here
 GITHUB_OWNER=optional_default_owner
 GITHUB_REPO=optional_default_repo
 PR_NUMBER=optional_default_pr_number
 
 # Claude API configuration
-CLAUDE_API_KEY=your_claude_api_key_here
-CLAUDE_MODEL=claude-3-haiku-20240307
-CLAUDE_MAX_TOKENS=1000
-CLAUDE_TEMPERATURE=0.7
+PROVIDER_API_KEY=your_provider_api_key_here
+PROVIDER_MODEL=claude-3-haiku-20240307
+PROVIDER_MAX_TOKENS=1000
+PROVIDER_TEMPERATURE=0.7
 
 # Test configuration
 TEST_FRAMEWORK=jest
@@ -165,7 +166,7 @@ npm run format
 ## Architecture
 
 - **GithubService**: Handles all GitHub API interactions (PRs, files, comments)
-- **ClaudeService**: Manages Claude API requests for code review and test generation
+- **ProviderService**: Manages Provider API requests for code review and test generation
 - **CodeReviewerService**: Orchestrates the review process between GitHub and Claude
 - **WebhookService**: Handles GitHub webhook events for automated PR reviews
 - **Logger**: Utility for tracking and debugging

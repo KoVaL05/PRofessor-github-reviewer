@@ -5,7 +5,7 @@ export interface GithubConfig {
   botUsername?: string;
 }
 
-export interface ClaudeConfig {
+export interface ModelConfig {
   apiKey: string;
   model?: string;
   maxTokens?: number;

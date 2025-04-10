@@ -1,9 +1,15 @@
 import dotenv from 'dotenv';
 import { GithubService } from './services/github';
 import { CodeReviewerService } from './services/reviewer';
-import { ClaudeService } from './services/claude';
+// SERVICES
+import { ClaudeService } from './services/models/claude';
+import { ChatGPTService } from './services/models/chatgpt';
+import { GeminiService } from './services/models/gemini';
+
 import { WebhookService } from './services/webhook';
 import { logger } from './utils/logger';
+import { CodeBaseConfig, ModelConfig } from './types';
+import { ProviderService } from './services/provider_service';
 
 // Load environment variables
 dotenv.config();
@@ -11,15 +17,15 @@ dotenv.config();
 async function main(): Promise<void> {
   // Check for required environment variables
   const githubToken = process.env.GITHUB_TOKEN;
-  const claudeApiKey = process.env.CLAUDE_API_KEY;
+  const providerApiKey = process.env.CLAUDE_API_KEY;
 
   if (!githubToken) {
     logger.error('GITHUB_TOKEN environment variable is required');
     process.exit(1);
   }
 
-  if (!claudeApiKey) {
-    logger.error('CLAUDE_API_KEY environment variable is required');
+  if (!providerApiKey) {
+    logger.error('PROVIDER_API_KEY environment variable is required');
     process.exit(1);
   }
 
@@ -31,21 +37,35 @@ async function main(): Promise<void> {
     token: githubToken,
     botUsername: 'PRofessor',
   });
-  const claudeService = new ClaudeService(
-    {
-      apiKey: claudeApiKey,
-      model: process.env.CLAUDE_MODEL || 'claude-3-7-sonnet-latest',
-      maxTokens: process.env.CLAUDE_MAX_TOKENS ? parseInt(process.env.CLAUDE_MAX_TOKENS, 10) : 1000,
-      temperature: process.env.CLAUDE_TEMPERATURE
-        ? parseFloat(process.env.CLAUDE_TEMPERATURE)
-        : 0.7,
-    },
-    {
-      language: 'TypeScript',
-      frameworkInfo: process.env.TEST_FRAMEWORK || 'jest',
-    },
-  );
-  const reviewerService = new CodeReviewerService(githubService, claudeService);
+
+  const modelConfig: ModelConfig = {
+    apiKey: providerApiKey,
+    model: process.env.PROVIDER_MODEL || 'claude-3-7-sonnet-latest',
+    maxTokens: process.env.PROVIDER_MAX_TOKENS
+      ? parseInt(process.env.PROVIDER_MAX_TOKENS, 10)
+      : 1000,
+    temperature: process.env.PROVIDER_TEMPERATURE
+      ? parseFloat(process.env.PROVIDER_TEMPERATURE)
+      : 0.7,
+  };
+  const codeBaseConfig: CodeBaseConfig = {
+    language: 'TypeScript',
+    frameworkInfo: process.env.TEST_FRAMEWORK || 'jest',
+  };
+  const providerService: ProviderService = (() => {
+    switch (process.env.PROVIDER_NAME) {
+      case 'Claude':
+        return new ClaudeService(modelConfig, codeBaseConfig);
+      case 'ChatGPT':
+        return new ChatGPTService(modelConfig, codeBaseConfig);
+      case 'Gemini':
+        return new GeminiService(modelConfig, codeBaseConfig);
+      default:
+        throw new Error('Unsupported provider');
+    }
+  })();
+
+  const reviewerService = new CodeReviewerService(githubService, providerService);
 
   try {
     if (command === 'server') {
