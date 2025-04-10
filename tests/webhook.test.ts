@@ -29,7 +29,7 @@ jest.mock('@octokit/rest', () => {
 });
 jest.mock('../src/services/reviewer');
 jest.mock('../src/services/github');
-jest.mock('../src/services/claude');
+jest.mock('../src/services/models/claude');
 jest.mock('express', () => {
   const json = jest.fn().mockReturnValue(() => {});
   const mockExpress = {
