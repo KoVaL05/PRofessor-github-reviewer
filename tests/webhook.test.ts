@@ -55,7 +55,7 @@ describe('WebhookService', () => {
   };
   beforeEach(() => {
     jest.clearAllMocks();
-    // Setup mock reviewer service
+    // Setup whole mock reviewer service
     const mockGithubService = new GithubService({
       token: 'test-token',
     }) as jest.Mocked<GithubService>;
