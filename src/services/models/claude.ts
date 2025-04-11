@@ -199,7 +199,12 @@ Provide your review in JSON format with these fields:
     }
 
     try {
-      return JSON.parse(response.content) as CodeReview;
+      const jsonString = this.extractJsonFromMarkdown(response.content);
+      if (jsonString) {
+        return JSON.parse(jsonString) as CodeReview;
+      } else {
+        throw new Error('Could not extract JSON from the response');
+      }
     } catch (error) {
       throw new Error(
         'Failed to parse response as JSON: ' +

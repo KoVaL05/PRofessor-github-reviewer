@@ -35,6 +35,20 @@ export abstract class ProviderService {
   abstract respondToComment(userComment: string, codeContext?: string): Promise<string>;
 
   /**
+   * Extract JSON from Markdown text.
+   */
+
+  extractJsonFromMarkdown(markdownString: string): string {
+    if (!markdownString) {
+      return '';
+    }
+    let result = markdownString.replace(/^```json\s*/m, '');
+    result = result.replace(/\s*```$/m, '');
+
+    return result;
+  }
+
+  /**
    * Get all tracked API requests.
    */
   getRequests(): ApiRequest[] {

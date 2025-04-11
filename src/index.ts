@@ -17,7 +17,7 @@ dotenv.config();
 async function main(): Promise<void> {
   // Check for required environment variables
   const githubToken = process.env.GITHUB_TOKEN;
-  const providerApiKey = process.env.CLAUDE_API_KEY;
+  const providerApiKey = process.env.PROVIDER_API_KEY;
 
   if (!githubToken) {
     logger.error('GITHUB_TOKEN environment variable is required');
